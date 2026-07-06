@@ -3,7 +3,7 @@ kind: phase
 name: phase-03-videos
 sources_mtime:
   docs/project-plan.md: "2026-07-06T16:06:25-0300"
-  docs/decisions/technical-decisions-phase-03-videos.md: "2026-07-06T16:23:45-0300"
+  docs/decisions/technical-decisions-phase-03-videos.md: "2026-07-06T17:25:36-0300"
   docs/decisions/technical-decisions-openapi-docs-nestjs.md: "2026-07-06T16:06:48-0300"
   docs/decisions/technical-decisions-next-frontend-openapi-typing.md: "2026-07-06T16:06:48-0300"
   docs/decisions/technical-decisions-next-frontend-config-base.md: "2026-07-06T16:06:48-0300"
@@ -51,14 +51,15 @@ sources_mtime:
 
 | Ref | Source | Scope | Topic | Status | Decision | Libraries |
 |-----|--------|-------|-------|--------|----------|-----------|
-| phase-03-videos/TD-01 | phase | Backend | Queue Technology for Background Processing | decided | A (BullMQ + Redis) | — |
-| phase-03-videos/TD-02 | phase | Cross-layer | 10GB Upload Strategy | decided | A (S3 Multipart Upload, presigned part URLs) | — |
+| phase-03-videos/TD-01 | phase | Backend | Queue Technology for Background Processing | decided | A (BullMQ + Redis) | @nestjs/bullmq, bullmq |
+| phase-03-videos/TD-02 | phase | Cross-layer | 10GB Upload Strategy | decided | A (S3 Multipart Upload, presigned part URLs) | @aws-sdk/client-s3, @aws-sdk/s3-request-presigner |
 | phase-03-videos/TD-03 | phase | Backend | Video Worker Topology | decided | A (second entrypoint, Compose `video-worker`) | — |
 | phase-03-videos/TD-04 | phase | Backend | Metadata & Thumbnail Extraction Tooling | decided | A (ffmpeg/ffprobe in image via child_process) | — |
-| phase-03-videos/TD-05 | phase | Backend | Unique Public URL Strategy | decided | A (nanoid 11-char slug, unique index) | — |
+| phase-03-videos/TD-05 | phase | Backend | Unique Public URL Strategy | decided | A (nanoid 11-char slug, unique index) | nanoid@^3 |
+| └─ Last revision: 2026-07-06 — Pinned nanoid@^3 (CJS-native; project compiles to CommonJS, v4+ is ESM-only) | | | | | | |
 | phase-03-videos/TD-06 | phase | Cross-layer | Streaming & Download Delivery | decided | A (302 redirect to presigned GET) | — |
 | phase-03-videos/TD-07 | phase | Backend | Video Status Lifecycle & Failure Policy | decided | A (draft → processing → ready \| failed) | — |
-| phase-03-videos/TD-08 | phase | Backend | Object Storage Usage — Key Layout & Presign Endpoints | decided | A (bucket `streamtube`; dual client) | — |
+| phase-03-videos/TD-08 | phase | Backend | Object Storage Usage — Key Layout & Presign Endpoints | decided | A (bucket `streamtube`; dual client) | @aws-sdk/client-s3 |
 | phase-03-videos/TD-09 | phase | Backend | Access Policy for Streaming & Download in This Phase | decided | A (@Public() stream/download for `ready`) | — |
 
 _Source files:_
@@ -84,12 +85,12 @@ _Source files:_
 ### phase-03-videos/TD-01
 
 **Recommendation:** the official `@nestjs/bullmq` integration gives job semantics (retries, backoff, failed-job inspection) out of the box with idiomatic NestJS modules/processors; Redis is a single lightweight Compose service, and the worker consumes the same queue from a standalone process, matching the target architecture (API publishes → queue → worker).
-**Libraries:** —
+**Libraries:** @nestjs/bullmq, bullmq
 
 ### phase-03-videos/TD-02
 
 **Recommendation:** it is the native S3 mechanism for large objects: satisfies 10GB (Option B cannot), gives per-part retry, keeps the API on the control plane only, and adds no new service (unlike Option C).
-**Libraries:** —
+**Libraries:** @aws-sdk/client-s3, @aws-sdk/s3-request-presigner
 
 ### phase-03-videos/TD-03
 
@@ -104,7 +105,10 @@ _Source files:_
 ### phase-03-videos/TD-05
 
 **Recommendation:** short non-enumerable URLs with a database-enforced uniqueness guarantee; the retry branch is trivial.
-**Libraries:** —
+**Libraries:** nanoid@^3
+
+**Revisions:**
+- 2026-07-06 — Pinned `nanoid@^3` (CJS-native). Rationale: project compiles to CommonJS; nanoid v4+ is ESM-only (validation OQ-1).
 
 ### phase-03-videos/TD-06
 
@@ -119,7 +123,7 @@ _Source files:_
 ### phase-03-videos/TD-08
 
 **Recommendation:** the dual-endpoint split is what makes presigned URLs actually work from outside the Compose network, and a single prefixed bucket is simpler to provision and migrate.
-**Libraries:** —
+**Libraries:** @aws-sdk/client-s3
 
 ### phase-03-videos/TD-09
 

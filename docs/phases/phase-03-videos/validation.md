@@ -1,15 +1,16 @@
 ---
 kind: phase
 name: phase-03-videos
-status: dirty
-issue_count: 1
+status: clean
+issue_count: 0
 sources_mtime:
-  docs/phases/phase-03-videos/context.md: "2026-07-06T16:39:28-0300"
-  docs/decisions/technical-decisions-phase-03-videos.md: "2026-07-06T16:23:45-0300"
+  docs/phases/phase-03-videos/context.md: "2026-07-06T17:28:42-0300"
+  docs/decisions/technical-decisions-phase-03-videos.md: "2026-07-06T17:25:36-0300"
 issues:
   - id: OQ-1
-    status: open
+    status: resolved
     summary: "nanoid (TD-05) latest major is ESM-only; project emits CommonJS — version must be pinned"
+    resolved_by: phase-03-videos/TD-05
 ---
 
 # phase-03-videos — Validation
@@ -38,7 +39,7 @@ _None._ — new infra (Redis, MinIO, worker) does not contradict inherited conve
 
 ### Unresolved Open Questions
 
-- **OQ-1** — TD-05 selects `nanoid` for slug generation, but nanoid v4+ is ESM-only while `nestjs-project` compiles to CommonJS (`module: nodenext`, no `"type": "module"`). A `require()` of an ESM-only package fails at runtime unless the container Node version supports `require(esm)`. Resolution: `/plan-resolve 03` must pin a compatible version (`nanoid@^3` — CJS-compatible, same API surface for `nanoid(size)`) or document reliance on `require(esm)` support of the container's Node version, and record the choice in `library-refs.md`.
+_None._
 
 ### UI Coverage Gaps
 
@@ -46,4 +47,4 @@ _None._ — no UI scope in this phase.
 
 ## Resolved Issues
 
-_No issues resolved yet._
+- **OQ-1** _(resolved_by phase-03-videos/TD-05)_ — nanoid pinned to `^3` (last CJS-native major; same `nanoid(size)`/`customAlphabet` API). Revision appended to TD-05; `**Libraries:** nanoid@^3` recorded. User chose v3 over relying on the container's `require(esm)` support.

@@ -43,6 +43,7 @@ _Subprojects in scope:_
 **Recommendation:** **Option A (BullMQ + Redis)** — the official `@nestjs/bullmq` integration gives job semantics (retries, backoff, failed-job inspection) out of the box with idiomatic NestJS modules/processors; Redis is a single lightweight Compose service, and the worker consumes the same queue from a standalone process, matching the target architecture (API publishes → queue → worker).
 
 **Decision:** A (BullMQ + Redis)
+**Libraries:** @nestjs/bullmq, bullmq
 
 ---
 
@@ -74,6 +75,7 @@ _Subprojects in scope:_
 **Recommendation:** **Option A (multipart presigned)** — it is the native S3 mechanism for large objects: satisfies 10GB (Option B cannot), gives per-part retry, keeps the API on the control plane only, and adds no new service (unlike Option C).
 
 **Decision:** A (S3 Multipart Upload with presigned part URLs, part size ~100MB)
+**Libraries:** @aws-sdk/client-s3, @aws-sdk/s3-request-presigner
 
 ---
 
@@ -167,6 +169,10 @@ _Subprojects in scope:_
 **Recommendation:** **Option A (nanoid + unique index)** — short non-enumerable URLs with a database-enforced uniqueness guarantee; the retry branch is trivial.
 
 **Decision:** A (nanoid 11-char slug, unique index, regenerate on collision)
+**Libraries:** nanoid@^3
+
+**Revisions:**
+- 2026-07-06 — Pinned `nanoid@^3` (last CommonJS-native major; same `nanoid(size)`/`customAlphabet` API). Rationale: the project compiles to CommonJS and nanoid v4+ is ESM-only; v3 removes any dependency on the runtime's `require(esm)` support (validation OQ-1).
 
 ---
 
@@ -250,6 +256,7 @@ _Subprojects in scope:_
 **Recommendation:** **Option A** — the dual-endpoint split is what makes presigned URLs actually work from outside the Compose network, and a single prefixed bucket is simpler to provision and migrate.
 
 **Decision:** A (bucket `streamtube`; prefixed keys; internal client for object ops, public-endpoint client for presigning)
+**Libraries:** @aws-sdk/client-s3
 
 ---
 
