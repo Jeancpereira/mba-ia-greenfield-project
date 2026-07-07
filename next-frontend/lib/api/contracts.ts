@@ -40,6 +40,17 @@ export type ForgotPasswordDto =
 export type RefreshTokenDto =
   paths["/auth/refresh"]["post"]["requestBody"]["content"]["application/json"];
 
+export type ResendConfirmationDto =
+  paths["/auth/resend-confirmation"]["post"]["requestBody"]["content"]["application/json"];
+
+export type ResetPasswordDto =
+  paths["/auth/reset-password"]["post"]["requestBody"]["content"]["application/json"];
+
+// Reshape alias — the BFF confirm-email route accepts the token via a JSON
+// body (POST, user-triggered) even though the upstream endpoint is a GET
+// with the token as a query param (see app/api/auth/confirm-email/route.ts).
+export type ConfirmEmailDto = { token: string };
+
 // Upstream success response bodies
 export type RegisterResponse =
   paths["/auth/register"]["post"]["responses"][201]["content"]["application/json"];
@@ -51,6 +62,11 @@ export type LoginTokenPair =
 
 export type RefreshTokenPair =
   paths["/auth/refresh"]["post"]["responses"][200]["content"]["application/json"];
+
+// CurrentUser: upstream /auth/me 200 body. Consumed by the login route to
+// hydrate userId/email into the iron-session cookie right after login.
+export type CurrentUser =
+  paths["/auth/me"]["get"]["responses"][200]["content"]["application/json"];
 
 // Shared error envelope (all auth 4xx responses)
 export type ApiErrorEnvelope =

@@ -5,6 +5,7 @@ import type {
   LoginTokenPair,
   RefreshTokenPair,
   ApiErrorEnvelope,
+  CurrentUser,
 } from "@/lib/api/contracts";
 import { env } from "@/lib/env";
 
@@ -13,6 +14,9 @@ const CONFLICT_EMAIL = "conflict@example.com";
 const BAD_REQUEST_EMAIL = "badrequest@example.com";
 const INVALID_CREDENTIALS_EMAIL = "invalid@example.com";
 const UNCONFIRMED_EMAIL = "unconfirmed@example.com";
+const INVALID_TOKEN = "invalid-token";
+const MALFORMED_TOKEN = "malformed-token";
+const FIXTURE_ACCESS_TOKEN = "fixture-access-token";
 
 function errorEnvelope(
   statusCode: number,
@@ -98,6 +102,76 @@ export const handlers = [
   http.post(`${env.API_URL}/auth/refresh`, () => {
     return HttpResponse.json<RefreshTokenPair>(
       { access_token: "new-fixture-access-token", refresh_token: "new-fixture-refresh-token" },
+      { status: 200 }
+    );
+  }),
+
+  // GET /auth/confirm-email?token=...
+  http.get(`${env.API_URL}/auth/confirm-email`, ({ request }) => {
+    const token = new URL(request.url).searchParams.get("token");
+
+    if (token === MALFORMED_TOKEN) {
+      return HttpResponse.json(
+        errorEnvelope(400, "VALIDATION_FAILED", "Validation failed"),
+        { status: 400 }
+      );
+    }
+    if (!token || token === INVALID_TOKEN) {
+      return HttpResponse.json(
+        errorEnvelope(401, "INVALID_TOKEN", "Invalid or expired confirmation token"),
+        { status: 401 }
+      );
+    }
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  // POST /auth/resend-confirmation
+  http.post(`${env.API_URL}/auth/resend-confirmation`, async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    const email = typeof body.email === "string" ? body.email : "";
+
+    if (email === BAD_REQUEST_EMAIL) {
+      return HttpResponse.json(
+        errorEnvelope(400, "VALIDATION_FAILED", "Validation failed"),
+        { status: 400 }
+      );
+    }
+    // 204 pass-through — identical whether or not the account exists/is already confirmed.
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  // POST /auth/reset-password
+  http.post(`${env.API_URL}/auth/reset-password`, async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    const token = typeof body.token === "string" ? body.token : "";
+
+    if (token === MALFORMED_TOKEN) {
+      return HttpResponse.json(
+        errorEnvelope(400, "VALIDATION_FAILED", "Validation failed"),
+        { status: 400 }
+      );
+    }
+    if (token === INVALID_TOKEN) {
+      return HttpResponse.json(
+        errorEnvelope(401, "INVALID_TOKEN", "Invalid or expired reset token"),
+        { status: 401 }
+      );
+    }
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  // GET /auth/me
+  http.get(`${env.API_URL}/auth/me`, ({ request }) => {
+    const auth = request.headers.get("authorization") ?? "";
+
+    if (auth !== `Bearer ${FIXTURE_ACCESS_TOKEN}`) {
+      return HttpResponse.json(
+        errorEnvelope(401, "UNAUTHORIZED", "Missing or invalid access token"),
+        { status: 401 }
+      );
+    }
+    return HttpResponse.json<CurrentUser>(
+      { sub: "user-fixture-id", email: "alice@example.com" },
       { status: 200 }
     );
   }),
