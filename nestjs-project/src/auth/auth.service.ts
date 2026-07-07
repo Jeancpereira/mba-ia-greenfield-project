@@ -55,23 +55,42 @@ export class AuthService {
 
   async register(dto: RegisterDto): Promise<{ id: string; email: string }> {
     const existing = await this.usersService.findByEmailWithChannel(dto.email);
+
+    // Anti-enumeration (timing): hash unconditionally, even when the email
+    // already exists and the hash is discarded. argon2.hash dominates this
+    // handler's latency; skipping it on the collision path makes that
+    // response measurably faster than the "new user" path, letting an
+    // attacker infer whether an email is registered purely from response
+    // time. Paying the cost on both paths equalizes timing.
+    const hashedPassword = await argon2.hash(dto.password);
+
     if (existing) {
-      // Anti-enumeration: never reveal that the email is already registered.
-      // Respond exactly like a successful registration and, behind the
-      // scenes, nudge the account owner via email instead of creating a
-      // duplicate account.
-      if (existing.is_confirmed) {
-        await this.mailService.sendAccountAlreadyExistsEmail(
-          existing.email,
-          existing.channel.name,
-        );
-      } else {
-        await this.issueConfirmationEmail(existing);
-      }
-      return { id: existing.id, email: existing.email };
+      // Anti-enumeration (behavior + content): never reveal that the email
+      // is already registered. Respond exactly like a successful
+      // registration and, behind the scenes, notify the account owner by
+      // email instead of creating a duplicate account.
+      //
+      // The register endpoint never (re)issues confirmation tokens for an
+      // existing account, confirmed or not: doing so lets a stranger who
+      // merely knows the victim's email address invalidate her live
+      // confirmation token by calling POST /register again (a denial of
+      // service against her ability to confirm). Legitimate token re-issue
+      // stays exclusively on POST /auth/resend-confirmation, which is the
+      // intentional, rate-limited path for that action.
+      await this.mailService.sendAccountAlreadyExistsEmail(
+        existing.email,
+        existing.channel.name,
+      );
+
+      // Anti-enumeration (information disclosure): never return the real
+      // user id of an account the caller does not own — an unauthenticated
+      // caller could otherwise harvest UUIDs of registered accounts via
+      // this endpoint. Return a synthetic id, indistinguishable from a
+      // freshly created user, alongside the (already known to the caller)
+      // requested email.
+      return { id: crypto.randomUUID(), email: dto.email };
     }
 
-    const hashedPassword = await argon2.hash(dto.password);
     const user = await this.usersService.createUserWithChannel(
       dto.email,
       hashedPassword,

@@ -49,11 +49,20 @@ export class MailService {
   ): Promise<void> {
     const loginUrl = `${this.appUrl}/login`;
     const forgotPasswordUrl = `${this.appUrl}/forgot-password`;
+    // Single generic template for both confirmed and unconfirmed accounts:
+    // register()'s anti-enumeration flow never (re)issues a confirmation
+    // token itself (that would let a stranger clobber the victim's active
+    // token), so an unconfirmed owner is pointed at the legitimate,
+    // rate-limited resend endpoint instead. The email body is only ever
+    // seen by the real account owner in her inbox, so always including the
+    // resend link alongside login/reset links leaks nothing to the caller
+    // of /auth/register and avoids maintaining two near-duplicate templates.
+    const resendConfirmationUrl = `${this.appUrl}/resend-confirmation`;
     await this.mailerService.sendMail({
       to: email,
       subject: MAIL_SUBJECTS.ACCOUNT_EXISTS,
       template: MAIL_TEMPLATES.ACCOUNT_EXISTS,
-      context: { name, loginUrl, forgotPasswordUrl },
+      context: { name, loginUrl, forgotPasswordUrl, resendConfirmationUrl },
     });
   }
 }

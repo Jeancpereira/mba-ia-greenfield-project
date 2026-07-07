@@ -102,7 +102,7 @@ describe('Auth (e2e)', () => {
       expect(res.body.email).toBe('user@example.com');
     });
 
-    it('returns 201 with the same shape on duplicate email (no enumeration leak)', async () => {
+    it('returns 201 with the same shape on duplicate email, with a synthetic id (no enumeration leak)', async () => {
       const first = await request(app.getHttpServer())
         .post('/auth/register')
         .send({ email: 'dup@example.com', password: 'password123' })
@@ -113,8 +113,35 @@ describe('Auth (e2e)', () => {
         .send({ email: 'dup@example.com', password: 'password456' })
         .expect(201);
 
-      expect(second.body.id).toBe(first.body.id);
       expect(second.body.email).toBe('dup@example.com');
+      // The collision response must never carry the real user's id — it
+      // returns a synthetic UUID, indistinguishable in shape from a genuine
+      // registration, so an unauthenticated caller cannot harvest ids of
+      // existing accounts through this endpoint.
+      expect(second.body.id).not.toBe(first.body.id);
+    });
+
+    it('does not clobber the existing confirmation token on duplicate, unconfirmed email', async () => {
+      const first = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: 'dupunconfirmed@example.com', password: 'password123' })
+        .expect(201);
+
+      const oldToken = await verificationTokenRepository.findOneBy({
+        user_id: first.body.id,
+      });
+
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: 'dupunconfirmed@example.com', password: 'password456' })
+        .expect(201);
+
+      const tokensForUser = await verificationTokenRepository.findBy({
+        user_id: first.body.id,
+      });
+      expect(tokensForUser.length).toBe(1);
+      expect(tokensForUser[0].used_at).toBeNull();
+      expect(tokensForUser[0].id).toBe(oldToken!.id);
     });
 
     it('returns 400 with VALIDATION_ERROR on missing email', async () => {

@@ -98,7 +98,7 @@ describe('MailService (integration)', () => {
     expect(messages[0].Subject).toBe(MAIL_SUBJECTS.ACCOUNT_EXISTS);
   });
 
-  it('sendAccountAlreadyExistsEmail renders login and password reset links in the body', async () => {
+  it('sendAccountAlreadyExistsEmail renders login, password reset, and resend-confirmation links in the body', async () => {
     await mailService.sendAccountAlreadyExistsEmail(
       'user@example.com',
       'Alice',
@@ -110,6 +110,11 @@ describe('MailService (integration)', () => {
     expect(detail.HTML).toContain('Alice');
     expect(detail.HTML).toContain('/login');
     expect(detail.HTML).toContain('/forgot-password');
+    // Single generic template covers both confirmed and unconfirmed
+    // accounts — see MailService.sendAccountAlreadyExistsEmail for why the
+    // resend-confirmation link is always included rather than issuing a
+    // new token directly.
+    expect(detail.HTML).toContain('/resend-confirmation');
   });
 
   it('both emails use the configured MAIL_FROM address as sender', async () => {

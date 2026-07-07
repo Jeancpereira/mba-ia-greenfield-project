@@ -147,7 +147,7 @@ describe('AuthService — register (integration)', () => {
     expect(token!.token_hash).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it('does not create a second user on duplicate email and resends confirmation (unconfirmed account)', async () => {
+  it('does not create a second user, does not reissue the confirmation token, and sends an "account exists" notice (unconfirmed account)', async () => {
     const first = await authService.register({
       email: 'dup@example.com',
       password: 'password123',
@@ -158,6 +158,9 @@ describe('AuthService — register (integration)', () => {
     });
 
     const mailServiceInstance = (authService as any).mailService;
+    const sendAccountExistsSpy = jest
+      .spyOn(mailServiceInstance, 'sendAccountAlreadyExistsEmail')
+      .mockResolvedValue(undefined);
     const sendConfirmationSpy = jest.spyOn(
       mailServiceInstance,
       'sendConfirmationEmail',
@@ -168,17 +171,28 @@ describe('AuthService — register (integration)', () => {
       password: 'password456',
     });
 
-    expect(second).toEqual({ id: first.id, email: first.email });
+    expect(second.email).toBe(first.email);
+    expect(second.id).not.toBe(first.id);
 
     const users = await userRepository.findBy({ email: 'dup@example.com' });
     expect(users.length).toBe(1);
 
-    expect(sendConfirmationSpy).toHaveBeenCalled();
+    expect(sendAccountExistsSpy).toHaveBeenCalledWith(
+      'dup@example.com',
+      expect.any(String),
+    );
+    expect(sendConfirmationSpy).not.toHaveBeenCalled();
 
+    // The victim's original, still-active confirmation token must survive
+    // untouched — register() must never clobber it (DoS on confirmation).
     const refreshedOldToken = await verificationTokenRepository.findOneBy({
       id: oldToken!.id,
     });
-    expect(refreshedOldToken!.used_at).toBeInstanceOf(Date);
+    expect(refreshedOldToken!.used_at).toBeNull();
+    const tokensForUser = await verificationTokenRepository.findBy({
+      user_id: first.id,
+    });
+    expect(tokensForUser.length).toBe(1);
   });
 
   it('does not create a second user on duplicate email and sends an "account exists" notice (confirmed account)', async () => {
@@ -205,7 +219,8 @@ describe('AuthService — register (integration)', () => {
       password: 'password456',
     });
 
-    expect(second).toEqual({ id: first.id, email: first.email });
+    expect(second.email).toBe(first.email);
+    expect(second.id).not.toBe(first.id);
 
     const users = await userRepository.findBy({
       email: 'dupconfirmed@example.com',
