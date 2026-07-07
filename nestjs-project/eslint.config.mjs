@@ -32,4 +32,21 @@ export default tseslint.config(
       "prettier/prettier": ["error", { endOfLine: "auto" }],
     },
   },
+  {
+    // Test files exercise untyped boundaries (supertest response bodies,
+    // mocked collaborators); unsafe-* stay strict in production code only.
+    files: [
+      'src/**/*.spec.ts',
+      'src/**/*.integration-spec.ts',
+      'test/**/*.e2e-spec.ts',
+      'src/test/**/*.ts',
+    ],
+    rules: {
+      '@typescript-eslint/no-unsafe-member-access': 'warn',
+      '@typescript-eslint/no-unsafe-assignment': 'warn',
+      '@typescript-eslint/no-unsafe-call': 'warn',
+      '@typescript-eslint/no-unsafe-return': 'warn',
+      '@typescript-eslint/unbound-method': 'off',
+    },
+  },
 );

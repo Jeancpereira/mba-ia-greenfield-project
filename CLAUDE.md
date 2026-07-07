@@ -20,11 +20,13 @@ See `docs/diagrams/software-arch.mermaid` for the full diagram. Key containers:
 
 - **Frontend** (Next.js) → calls API via REST, streams from Object Storage
 - **API** (Nest.js) → business rules, auth, reads/writes DB, uploads to storage, publishes jobs to queue, sends emails
-- **Video Worker** (FFmpeg) → consumes jobs from queue, processes videos, updates DB and storage
+- **Video Worker** (FFmpeg) → consumes jobs from queue, processes videos, updates DB and storage. Implemented as a second entrypoint of `nestjs-project` (`src/worker/main.ts`), running in the `video-worker` Compose service
 - **Database** (PostgreSQL) → users, channels, videos, comments, likes
-- **Object Storage** (S3/MinIO) → video files and thumbnails
-- **Message Queue** (TBD) → video processing job queue
+- **Object Storage** (S3-compatible; MinIO locally, service `minio`) → video files (`videos/{id}/original{ext}`) and thumbnails (`thumbnails/{id}.jpg`) in the `streamtube` bucket. Clients upload/stream directly via presigned URLs — video bytes never pass through the API
+- **Message Queue** (BullMQ on Redis, service `redis`) → `video-processing` queue; the API publishes `process-video` jobs on upload completion (3 attempts, exponential backoff)
 - **Email Service** (SMTP) → account confirmation and password recovery
+
+Delivered so far: Fase 01 (base), Fase 02 (auth/users/channels — backend e frontend), Fase 03 (upload e processamento de vídeos — backend: multipart presigned upload de até 10GB, worker FFmpeg, streaming via presigned GET com Range/206, download). Decisions live in `docs/decisions/`; per-phase plans in `docs/phases/`.
 
 ## Docker Networking
 
