@@ -1,5 +1,18 @@
 import * as argon2 from 'argon2';
 import * as crypto from 'crypto';
+
+// argon2's native binding exposes non-configurable exports, so
+// `jest.spyOn(argon2, 'hash')` fails with "Cannot redefine property".
+// Wrap the real implementation in a jest.fn so tests can assert call
+// behavior (e.g. timing-equalization on the register() collision path)
+// while every other test still exercises real argon2 hashing/verification.
+jest.mock('argon2', () => {
+  const actual = jest.requireActual<typeof argon2>('argon2');
+  return {
+    ...actual,
+    hash: jest.fn(actual.hash),
+  };
+});
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
@@ -118,7 +131,8 @@ describe('AuthService — register', () => {
       password: 'password123',
     });
 
-    expect(result).toEqual({ id: 'u1', email: 'test@example.com' });
+    expect(result.email).toBe('test@example.com');
+    expect(result.id).not.toBe('u1');
     expect(usersService.createUserWithChannel).not.toHaveBeenCalled();
     expect(mailService.sendAccountAlreadyExistsEmail).toHaveBeenCalledWith(
       'test@example.com',
@@ -127,7 +141,7 @@ describe('AuthService — register', () => {
     expect(mailService.sendConfirmationEmail).not.toHaveBeenCalled();
   });
 
-  it('does not create a user and resends the confirmation email when the existing email is unconfirmed', async () => {
+  it('does not create a user, does not reissue a confirmation token, and sends "account exists" email when the existing email is unconfirmed', async () => {
     usersService.findByEmailWithChannel.mockResolvedValue({
       id: 'u1',
       email: 'test@example.com',
@@ -141,14 +155,36 @@ describe('AuthService — register', () => {
       password: 'password123',
     });
 
-    expect(result).toEqual({ id: 'u1', email: 'test@example.com' });
+    expect(result.email).toBe('test@example.com');
+    expect(result.id).not.toBe('u1');
     expect(usersService.createUserWithChannel).not.toHaveBeenCalled();
-    expect(mailService.sendAccountAlreadyExistsEmail).not.toHaveBeenCalled();
-    expect(mailService.sendConfirmationEmail).toHaveBeenCalledWith(
+    expect(mailService.sendAccountAlreadyExistsEmail).toHaveBeenCalledWith(
       'test@example.com',
       'nick',
-      expect.any(String),
     );
+    expect(mailService.sendConfirmationEmail).not.toHaveBeenCalled();
+    expect(verificationTokenRepository.create).not.toHaveBeenCalled();
+    expect(
+      verificationTokenRepository.createQueryBuilder,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('hashes the password even when the email already exists (timing equalization)', async () => {
+    usersService.findByEmailWithChannel.mockResolvedValue({
+      id: 'u1',
+      email: 'test@example.com',
+      is_confirmed: true,
+      channel: { name: 'nick' },
+    } as any);
+    const hashMock = argon2.hash as jest.Mock;
+    hashMock.mockClear();
+
+    await authService.register({
+      email: 'test@example.com',
+      password: 'password123',
+    });
+
+    expect(hashMock).toHaveBeenCalledWith('password123');
   });
 
   it('hashes the password before creating the user', async () => {
