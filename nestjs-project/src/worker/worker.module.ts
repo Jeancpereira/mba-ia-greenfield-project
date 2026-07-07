@@ -2,32 +2,27 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigType } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { AuthModule } from './auth/auth.module';
-import { VideosModule } from './videos/videos.module';
-import appConfig from './config/app.config';
-import authConfig from './config/auth.config';
-import databaseConfig from './config/database.config';
-import mailConfig from './config/mail.config';
-import queueConfig from './config/queue.config';
-import storageConfig from './config/storage.config';
-import swaggerConfig from './config/swagger.config';
-import { envValidationSchema } from './config/env.validation';
+import databaseConfig from '../config/database.config';
+import queueConfig from '../config/queue.config';
+import storageConfig from '../config/storage.config';
+import { envValidationSchema } from '../config/env.validation';
+import { Channel } from '../channels/entities/channel.entity';
+import { User } from '../users/entities/user.entity';
+import { StorageModule } from '../storage/storage.module';
+import { Video } from '../videos/entities/video.entity';
+import { FfmpegService } from '../videos/processing/ffmpeg.service';
+import { VideoProcessingProcessor } from '../videos/processing/video-processing.processor';
 
+/**
+ * Standalone worker application context (TD-03). Registers the BullMQ
+ * processor — which therefore never runs inside the API process — plus the
+ * infrastructure it needs. No controllers.
+ */
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [
-        appConfig,
-        authConfig,
-        databaseConfig,
-        mailConfig,
-        queueConfig,
-        storageConfig,
-        swaggerConfig,
-      ],
+      load: [databaseConfig, queueConfig, storageConfig],
       validationSchema: envValidationSchema,
       validationOptions: { allowUnknown: true, abortEarly: false },
     }),
@@ -55,10 +50,9 @@ import { envValidationSchema } from './config/env.validation';
         synchronize: false,
       }),
     }),
-    AuthModule,
-    VideosModule,
+    TypeOrmModule.forFeature([Video, Channel, User]),
+    StorageModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  providers: [FfmpegService, VideoProcessingProcessor],
 })
-export class AppModule {}
+export class WorkerModule {}
