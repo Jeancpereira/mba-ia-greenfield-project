@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
 import { z } from "zod"
@@ -113,8 +112,6 @@ function SignupForm({ className, ...props }: React.ComponentProps<"form">) {
     )
   }
 
-  const emailIsServerError = errors.email?.type === "server"
-
   return (
     <form
       data-slot="signup-form"
@@ -156,22 +153,7 @@ function SignupForm({ className, ...props }: React.ComponentProps<"form">) {
           aria-invalid={!!errors.email}
           {...register("email")}
         />
-        {errors.email?.message && (
-          <p className="text-caption text-destructive">
-            {errors.email.message}
-            {emailIsServerError && (
-              <>
-                {" "}
-                <Link
-                  href="/login"
-                  className="text-link hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 rounded-[var(--radius-0-5)]"
-                >
-                  fazer login
-                </Link>
-              </>
-            )}
-          </p>
-        )}
+        <FieldError message={errors.email?.message} />
       </div>
 
       <div className="flex flex-col gap-2">

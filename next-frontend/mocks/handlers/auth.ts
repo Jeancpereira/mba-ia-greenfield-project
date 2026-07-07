@@ -10,7 +10,10 @@ import type {
 import { env } from "@/lib/env";
 
 // Reserved trigger table (shared with E2E — trigger values must not collide across test suites).
-const CONFLICT_EMAIL = "conflict@example.com";
+// NOTE: "conflict@example.com" used to be a 409 trigger. The upstream API no
+// longer returns 409 on /auth/register (anti-enumeration: it always responds
+// like a successful registration, even for an already-registered email), so
+// that email now simply falls through to the generic 201 success response.
 const BAD_REQUEST_EMAIL = "badrequest@example.com";
 const INVALID_CREDENTIALS_EMAIL = "invalid@example.com";
 const UNCONFIRMED_EMAIL = "unconfirmed@example.com";
@@ -32,12 +35,6 @@ export const handlers = [
     const body = (await request.json()) as Record<string, unknown>;
     const email = typeof body.email === "string" ? body.email : "";
 
-    if (email === CONFLICT_EMAIL) {
-      return HttpResponse.json(
-        errorEnvelope(409, "EMAIL_ALREADY_REGISTERED", "Email already registered"),
-        { status: 409 }
-      );
-    }
     if (email === BAD_REQUEST_EMAIL) {
       return HttpResponse.json(
         errorEnvelope(400, "VALIDATION_FAILED", "Validation failed"),

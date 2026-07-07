@@ -102,17 +102,19 @@ describe('Auth (e2e)', () => {
       expect(res.body.email).toBe('user@example.com');
     });
 
-    it('returns 409 with EMAIL_ALREADY_EXISTS on duplicate email', async () => {
-      await request(app.getHttpServer())
+    it('returns 201 with the same shape on duplicate email (no enumeration leak)', async () => {
+      const first = await request(app.getHttpServer())
         .post('/auth/register')
-        .send({ email: 'dup@example.com', password: 'password123' });
+        .send({ email: 'dup@example.com', password: 'password123' })
+        .expect(201);
 
-      const res = await request(app.getHttpServer())
+      const second = await request(app.getHttpServer())
         .post('/auth/register')
         .send({ email: 'dup@example.com', password: 'password456' })
-        .expect(409);
+        .expect(201);
 
-      expect(res.body.error).toBe('EMAIL_ALREADY_EXISTS');
+      expect(second.body.id).toBe(first.body.id);
+      expect(second.body.email).toBe('dup@example.com');
     });
 
     it('returns 400 with VALIDATION_ERROR on missing email', async () => {

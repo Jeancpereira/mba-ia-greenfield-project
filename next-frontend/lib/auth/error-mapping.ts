@@ -10,26 +10,18 @@ function flattenMessage(message: ApiErrorEnvelope["message"]): string {
  * Maps the upstream `ApiErrorEnvelope` (passed through by the BFF Route Handler)
  * onto react-hook-form field/root errors.
  *
- * The signup contract does not enumerate machine-readable per-field codes
- * (`RegisterDto` has no declared properties yet), so the mapping keys on the
- * HTTP `statusCode` per the screen's Error Catalog → UX mapping:
- *  - 409: e-mail already registered → inline hint on the `email` field
- *          (the field's hint renders a "fazer login" CTA at the call site).
- *  - 400: validation failed → form-level inline message (`root.serverError`),
- *          deliberately NOT bound to the `email` field so it is visually
- *          distinct from the 409 email hint.
- *  - anything else → `root.serverError`.
+ * `POST /auth/register` is anti-enumeration: it never returns 409 for an
+ * already-registered email (it responds like a successful registration in
+ * that case too — see `components/auth/signup-form.tsx`). The signup contract
+ * does not enumerate any other machine-readable per-field codes either
+ * (`RegisterDto` has no declared properties yet), so every error status is
+ * surfaced as a single form-level message (`root.serverError`).
  */
 export function mapSignupErrorToForm<T extends FieldValues>(
   envelope: ApiErrorEnvelope,
   setError: UseFormSetError<T>,
 ): void {
   const message = flattenMessage(envelope.message)
-
-  if (envelope.statusCode === 409) {
-    setError("email" as Path<T>, { type: "server", message })
-    return
-  }
 
   setError("root.serverError" as Path<T>, { type: "server", message })
 }

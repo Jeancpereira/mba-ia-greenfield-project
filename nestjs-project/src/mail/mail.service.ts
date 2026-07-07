@@ -42,4 +42,18 @@ export class MailService {
       context: { name, resetUrl },
     });
   }
+
+  async sendAccountAlreadyExistsEmail(
+    email: string,
+    name: string,
+  ): Promise<void> {
+    const loginUrl = `${this.appUrl}/login`;
+    const forgotPasswordUrl = `${this.appUrl}/forgot-password`;
+    await this.mailerService.sendMail({
+      to: email,
+      subject: MAIL_SUBJECTS.ACCOUNT_EXISTS,
+      template: MAIL_TEMPLATES.ACCOUNT_EXISTS,
+      context: { name, loginUrl, forgotPasswordUrl },
+    });
+  }
 }

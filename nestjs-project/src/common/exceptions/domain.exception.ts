@@ -9,12 +9,6 @@ export abstract class DomainException extends Error {
   }
 }
 
-export class EmailAlreadyExistsException extends DomainException {
-  constructor() {
-    super('EMAIL_ALREADY_EXISTS', 409, 'Email is already registered');
-  }
-}
-
 export class InvalidCredentialsException extends DomainException {
   constructor() {
     super('INVALID_CREDENTIALS', 401, 'Invalid email or password');

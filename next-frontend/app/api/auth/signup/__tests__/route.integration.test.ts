@@ -30,11 +30,11 @@ describe("POST /api/auth/signup", () => {
     expect(res.headers.get("set-cookie")).toBeNull();
   });
 
-  it("returns 409 with ApiErrorEnvelope for conflict@example.com (reserved trigger)", async () => {
+  it("returns 201 with {id,email} for conflict@example.com (anti-enumeration: no 409 leak)", async () => {
     const res = await POST(makeRequest({ email: "conflict@example.com", password: "pw" }));
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body).toMatchObject({ statusCode: 409, error: "EMAIL_ALREADY_REGISTERED" });
+    expect(body).toMatchObject({ id: "user-fixture-id", email: "conflict@example.com" });
   });
 
   it("returns 400 with ApiErrorEnvelope for badrequest@example.com (reserved trigger)", async () => {

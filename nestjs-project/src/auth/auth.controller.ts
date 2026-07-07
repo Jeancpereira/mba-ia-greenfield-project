@@ -37,7 +37,12 @@ export class AuthController {
   @ApiOperation({
     summary: 'Register a new user',
     description:
-      'Creates a new user account and sends an email confirmation link.',
+      'Creates a new user account and sends an email confirmation link. ' +
+      'To avoid account enumeration, this endpoint always responds as if ' +
+      'the registration succeeded — if the email is already registered, ' +
+      'no new account is created and an informational email is sent to ' +
+      'the existing account instead (a "you already have an account" ' +
+      'notice, or a new confirmation link if it was never confirmed).',
   })
   @ApiResponse({
     status: 201,
@@ -52,11 +57,6 @@ export class AuthController {
   @ApiResponse({
     status: 400,
     description: 'Validation failed',
-    schema: { $ref: getSchemaPath(ApiErrorEnvelope) },
-  })
-  @ApiResponse({
-    status: 409,
-    description: 'Email already registered',
     schema: { $ref: getSchemaPath(ApiErrorEnvelope) },
   })
   async register(
