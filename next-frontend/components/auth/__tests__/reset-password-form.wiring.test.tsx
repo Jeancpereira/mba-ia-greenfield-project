@@ -26,7 +26,7 @@ describe("<ResetPasswordForm /> wiring", () => {
     ).not.toBeInTheDocument()
   })
 
-  it("submits token + password and replaces the form with a success message on 204", async () => {
+  it("submits token + new_password and replaces the form with a success message on 204", async () => {
     const user = userEvent.setup()
     const received: Record<string, unknown>[] = []
     server.use(
@@ -46,7 +46,7 @@ describe("<ResetPasswordForm /> wiring", () => {
       )
     )
     expect(received).toEqual([
-      { token: "valid-token", password: "Secret123" },
+      { token: "valid-token", new_password: "Secret123" },
     ])
     expect(
       screen.getByRole("link", { name: "Ir para o login" })

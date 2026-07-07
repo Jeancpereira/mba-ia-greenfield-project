@@ -18,16 +18,16 @@ function makeRequest(body: Record<string, unknown>) {
 }
 
 describe("POST /api/auth/reset-password", () => {
-  it("returns 204 with no body for a valid token + password", async () => {
+  it("returns 204 with no body for a valid token + new_password", async () => {
     const res = await POST(
-      makeRequest({ token: "valid-token", password: "NewPassw0rd" })
+      makeRequest({ token: "valid-token", new_password: "NewPassw0rd" })
     );
     expect(res.status).toBe(204);
   });
 
   it("returns 401 with ApiErrorEnvelope for an invalid/expired token (reserved trigger)", async () => {
     const res = await POST(
-      makeRequest({ token: "invalid-token", password: "NewPassw0rd" })
+      makeRequest({ token: "invalid-token", new_password: "NewPassw0rd" })
     );
     expect(res.status).toBe(401);
     const body = await res.json();
@@ -36,14 +36,14 @@ describe("POST /api/auth/reset-password", () => {
 
   it("returns 400 with ApiErrorEnvelope for a malformed token (reserved trigger)", async () => {
     const res = await POST(
-      makeRequest({ token: "malformed-token", password: "NewPassw0rd" })
+      makeRequest({ token: "malformed-token", new_password: "NewPassw0rd" })
     );
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body).toMatchObject({ statusCode: 400, error: "VALIDATION_FAILED" });
   });
 
-  it("forwards token + password to the upstream POST body", async () => {
+  it("forwards token + new_password to the upstream POST body", async () => {
     let received: Record<string, unknown> = {};
     server.use(
       http.post(`${env.API_URL}/auth/reset-password`, async ({ request }) => {
@@ -52,7 +52,7 @@ describe("POST /api/auth/reset-password", () => {
       })
     );
 
-    await POST(makeRequest({ token: "some-token", password: "Secret123" }));
-    expect(received).toEqual({ token: "some-token", password: "Secret123" });
+    await POST(makeRequest({ token: "some-token", new_password: "Secret123" }));
+    expect(received).toEqual({ token: "some-token", new_password: "Secret123" });
   });
 });

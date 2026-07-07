@@ -142,7 +142,12 @@ export const handlers = [
     const body = (await request.json()) as Record<string, unknown>;
     const token = typeof body.token === "string" ? body.token : "";
 
-    if (token === MALFORMED_TOKEN) {
+    // Mirror the upstream ResetPasswordDto: `new_password` (min 8) is required.
+    // Guards against payload-shape drift between the form/BFF and the API.
+    const newPassword =
+      typeof body.new_password === "string" ? body.new_password : "";
+
+    if (token === MALFORMED_TOKEN || newPassword.length < 8) {
       return HttpResponse.json(
         errorEnvelope(400, "VALIDATION_FAILED", "Validation failed"),
         { status: 400 }
