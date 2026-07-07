@@ -12,11 +12,11 @@ import {
 export class CompletedPartDto {
   @IsInt()
   @Min(1)
-  part_number: number;
+  part_number!: number;
 
   @IsString()
   @MinLength(1)
-  etag: string;
+  etag!: string;
 }
 
 export class CompleteUploadDto {
@@ -24,5 +24,5 @@ export class CompleteUploadDto {
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => CompletedPartDto)
-  parts: CompletedPartDto[];
+  parts!: CompletedPartDto[];
 }

@@ -8,7 +8,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import authConfig from '../config/auth.config';
 import {
-  EmailAlreadyExistsException,
   EmailNotConfirmedException,
   InvalidCredentialsException,
   InvalidTokenException,
@@ -16,6 +15,7 @@ import {
   TokenReuseDetectedException,
 } from '../common/exceptions/domain.exception';
 import { MailService } from '../mail/mail.service';
+import { User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -54,9 +54,21 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto): Promise<{ id: string; email: string }> {
-    const existing = await this.usersService.findByEmail(dto.email);
+    const existing = await this.usersService.findByEmailWithChannel(dto.email);
     if (existing) {
-      throw new EmailAlreadyExistsException();
+      // Anti-enumeration: never reveal that the email is already registered.
+      // Respond exactly like a successful registration and, behind the
+      // scenes, nudge the account owner via email instead of creating a
+      // duplicate account.
+      if (existing.is_confirmed) {
+        await this.mailService.sendAccountAlreadyExistsEmail(
+          existing.email,
+          existing.channel.name,
+        );
+      } else {
+        await this.issueConfirmationEmail(existing);
+      }
+      return { id: existing.id, email: existing.email };
     }
 
     const hashedPassword = await argon2.hash(dto.password);
@@ -65,16 +77,7 @@ export class AuthService {
       hashedPassword,
     );
 
-    const rawToken = await this.createVerificationToken(
-      user.id,
-      VerificationTokenType.EMAIL_CONFIRMATION,
-      this.authCfg.confirmationTokenExpirationHours,
-    );
-    await this.mailService.sendConfirmationEmail(
-      user.email,
-      user.channel.name,
-      rawToken,
-    );
+    await this.issueConfirmationEmail(user);
 
     return { id: user.id, email: user.email };
   }
@@ -137,21 +140,7 @@ export class AuthService {
       return;
     }
 
-    await this.invalidateActiveVerificationTokens(
-      user.id,
-      VerificationTokenType.EMAIL_CONFIRMATION,
-    );
-
-    const rawToken = await this.createVerificationToken(
-      user.id,
-      VerificationTokenType.EMAIL_CONFIRMATION,
-      this.authCfg.confirmationTokenExpirationHours,
-    );
-    await this.mailService.sendConfirmationEmail(
-      user.email,
-      user.channel.name,
-      rawToken,
-    );
+    await this.issueConfirmationEmail(user);
   }
 
   async refresh(
@@ -321,6 +310,26 @@ export class AuthService {
 
     record.used_at = new Date();
     return record;
+  }
+
+  private async issueConfirmationEmail(
+    user: Pick<User, 'id' | 'email' | 'channel'>,
+  ): Promise<void> {
+    await this.invalidateActiveVerificationTokens(
+      user.id,
+      VerificationTokenType.EMAIL_CONFIRMATION,
+    );
+
+    const rawToken = await this.createVerificationToken(
+      user.id,
+      VerificationTokenType.EMAIL_CONFIRMATION,
+      this.authCfg.confirmationTokenExpirationHours,
+    );
+    await this.mailService.sendConfirmationEmail(
+      user.email,
+      user.channel.name,
+      rawToken,
+    );
   }
 
   private async invalidateActiveVerificationTokens(

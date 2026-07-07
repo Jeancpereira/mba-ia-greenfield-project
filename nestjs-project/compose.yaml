@@ -59,6 +59,18 @@ services:
     depends_on:
       minio:
         condition: service_healthy
+    # NOTE (SI-05): we intentionally do NOT configure an
+    # `AbortIncompleteMultipartUpload` bucket lifecycle rule here.
+    # `mc ilm rule add` has no flag for it in the pinned `minio/mc` image
+    # (checked: `mc ilm rule add --help` lists only expire/transition
+    # actions), and both `mc ilm rule import` and a direct
+    # `PutBucketLifecycleConfiguration` S3 call accept a rule containing
+    # `AbortIncompleteMultipartUpload` without error but the MinIO server
+    # silently drops the field — `GetBucketLifecycleConfiguration` never
+    # shows it back. This looks like a real limitation of the MinIO version
+    # pinned by the `minio/minio` image used here, not a syntax issue.
+    # See docs/tasks/followup-orphaned-drafts-sweeper.md for the tracked
+    # follow-up (a scheduled sweeper) that covers this gap instead.
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 streamtube streamtube1234 &&

@@ -36,9 +36,15 @@ test.describe("auth-signup", () => {
     expect(cookies.some((c) => c.name.includes("session"))).toBe(false)
   })
 
-  test("1.2 signup-erro-409-email-ja-registrado", async ({ page }) => {
+  test("1.2 signup-email-existente-fluxo-generico-sem-enumeracao", async ({
+    page,
+  }) => {
     await page.goto("/signup")
 
+    // "conflict@example.com" simulates an already-registered email. The API
+    // is anti-enumeration: registration for an existing email responds
+    // exactly like a successful registration (no 409, no distinguishable
+    // error), so the UI must show the same generic success state.
     await page.getByLabel("Full Name").fill("Alice Doe")
     await page.getByLabel("Email address").fill("conflict@example.com")
     await page.getByLabel("Password", { exact: true }).fill("Password1")
@@ -46,12 +52,17 @@ test.describe("auth-signup", () => {
     await page.getByRole("checkbox").check()
     await page.getByRole("button", { name: "Create account" }).click()
 
-    await expect(page.getByText(/already registered/i)).toBeVisible()
-    const cta = page.getByRole("link", { name: /fazer login/i })
-    await expect(cta).toHaveAttribute("href", "/login")
+    await expect(page.getByRole("status")).toContainText("Conta criada!")
+  })
 
-    // Correct to a fresh email that trips the 400 validation trigger.
+  test("1.2b signup-erro-400-validacao-form-level", async ({ page }) => {
+    await page.goto("/signup")
+
+    await page.getByLabel("Full Name").fill("Alice Doe")
     await page.getByLabel("Email address").fill("badrequest@example.com")
+    await page.getByLabel("Password", { exact: true }).fill("Password1")
+    await page.getByLabel("Confirm Password").fill("Password1")
+    await page.getByRole("checkbox").check()
     await page.getByRole("button", { name: "Create account" }).click()
 
     const alert = page.locator("[data-slot='form-error']")

@@ -10,6 +10,7 @@ import {
   NotVideoOwnerException,
   SlugGenerationFailedException,
   UploadIncompleteException,
+  VideoFileSizeMismatchException,
   VideoNotFoundException,
 } from '../common/exceptions/domain.exception';
 import { Channel } from '../channels/entities/channel.entity';
@@ -20,6 +21,7 @@ import type { CreateVideoDto } from './dto/create-video.dto';
 import { Video, VideoStatus } from './entities/video.entity';
 import { generateSlug } from './slug.util';
 import {
+  MAX_FILE_SIZE_BYTES,
   MAX_SLUG_ATTEMPTS,
   PROCESS_VIDEO_JOB,
   PROCESS_VIDEO_JOB_OPTIONS,
@@ -146,17 +148,37 @@ export class VideosService {
       throw new UploadIncompleteException();
     }
 
+    const { contentLength } = await this.storageService.headObject(
+      video.original_key,
+    );
+    const declaredSize = Number(video.file_size);
+    if (contentLength > MAX_FILE_SIZE_BYTES || contentLength !== declaredSize) {
+      await this.storageService.deleteObject(video.original_key);
+      throw new VideoFileSizeMismatchException();
+    }
+
+    // Atomic draft -> processing transition: the WHERE clause includes the
+    // current status so a concurrent duplicate call (two racing requests
+    // completing the same upload) only lets one caller through. The loser
+    // gets affected === 0 and is treated as "not a draft anymore".
+    const updateResult = await this.videoRepository.update(
+      { id: video.id, status: VideoStatus.DRAFT },
+      { status: VideoStatus.PROCESSING, upload_id: null },
+    );
+    if (updateResult.affected !== 1) {
+      throw new InvalidUploadStateException();
+    }
+
     video.status = VideoStatus.PROCESSING;
     video.upload_id = null;
-    const saved = await this.videoRepository.save(video);
 
     await this.videoQueue.add(
       PROCESS_VIDEO_JOB,
-      { videoId: saved.id },
-      PROCESS_VIDEO_JOB_OPTIONS,
+      { videoId: video.id },
+      { ...PROCESS_VIDEO_JOB_OPTIONS, jobId: video.id },
     );
 
-    return saved;
+    return video;
   }
 
   /**

@@ -16,9 +16,11 @@ vi.mock("next/headers", () => ({
 }));
 
 let POST: (req: Request) => Promise<Response>;
+let getSession: typeof import("@/lib/auth/session").getSession;
 
 beforeAll(async () => {
   ({ POST } = await import("@/app/api/auth/login/route"));
+  ({ getSession } = await import("@/lib/auth/session"));
 });
 
 beforeEach(() => {
@@ -42,6 +44,12 @@ describe("POST /api/auth/login", () => {
     expect(body).not.toHaveProperty("refresh_token");
     // iron-session cookie must be set
     expect(cookieMap.has("streamtube_session")).toBe(true);
+
+    // Session is hydrated from GET /auth/me (fixture: sub=user-fixture-id,
+    // email=alice@example.com), not left blank.
+    const session = await getSession();
+    expect(session.userId).toBe("user-fixture-id");
+    expect(session.email).toBe("alice@example.com");
   });
 
   it("returns 401 without setting cookie for invalid credentials (reserved trigger uses badrequest@ — upstream override for 401)", async () => {

@@ -10,7 +10,7 @@ type NetworkFixtures = {
 //   - Do NOT page.route() /api/** — it short-circuits real Route Handlers.
 //   - Do NOT reach the real NestJS API — upstream is faked by mocks/ handlers.
 //   - Per-scenario outcomes use reserved trigger fixtures in shared handlers
-//     (e.g. "conflict@example.com" → 409); no per-test server.use() here.
+//     (e.g. "badrequest@example.com" → 400); no per-test server.use() here.
 export const test = base.extend<NetworkFixtures>({
   network: [async ({}, use) => { await use(); }, { auto: true }],
 });

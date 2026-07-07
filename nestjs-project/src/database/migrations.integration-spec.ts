@@ -35,12 +35,11 @@ describe('Database migrations (integration)', () => {
 
     await dataSource.initialize();
 
-    await Promise.all([
-      ...MANAGED_TABLES.map((table) =>
-        dataSource.query(`DROP TABLE IF EXISTS "${table}" CASCADE`),
-      ),
-      dataSource.query(`DROP TABLE IF EXISTS "migrations" CASCADE`),
-    ]);
+    // Drop sequentially: concurrent DROP TABLE ... CASCADE on FK-related
+    // tables deadlocks in Postgres.
+    for (const table of [...MANAGED_TABLES, 'migrations']) {
+      await dataSource.query(`DROP TABLE IF EXISTS "${table}" CASCADE`);
+    }
 
     // DROP TABLE does not remove enum types; without this, the CREATE TYPE in
     // CreateAuthTokens/CreateVideos fails on any database where migrations

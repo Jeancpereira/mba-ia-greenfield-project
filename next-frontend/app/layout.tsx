@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 
+import { SessionHeader } from "@/components/auth/session-header";
 import { SessionProvider } from "@/components/auth/session-provider";
 import { getSession } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,7 @@ export default async function RootLayout({
             isLoggedIn: session.isLoggedIn ?? false,
           }}
         >
+          <SessionHeader />
           {children}
         </SessionProvider>
       </body>

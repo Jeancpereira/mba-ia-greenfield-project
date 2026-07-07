@@ -1,7 +1,6 @@
 import { ArgumentsHost } from '@nestjs/common';
 import { DomainExceptionFilter } from './domain-exception.filter';
 import {
-  EmailAlreadyExistsException,
   EmailNotConfirmedException,
   InvalidCredentialsException,
   InvalidTokenException,
@@ -31,17 +30,6 @@ describe('DomainExceptionFilter', () => {
       switchToWs: () => ({}) as any,
       getType: () => 'http',
     } as unknown as ArgumentsHost;
-  });
-
-  it('maps EmailAlreadyExistsException to 409 with EMAIL_ALREADY_EXISTS', () => {
-    filter.catch(new EmailAlreadyExistsException(), mockHost);
-
-    expect(mockStatus).toHaveBeenCalledWith(409);
-    expect(mockJson).toHaveBeenCalledWith({
-      statusCode: 409,
-      error: 'EMAIL_ALREADY_EXISTS',
-      message: 'Email is already registered',
-    });
   });
 
   it('maps InvalidCredentialsException to 401 with INVALID_CREDENTIALS', () => {

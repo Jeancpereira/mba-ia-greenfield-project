@@ -114,10 +114,13 @@ describe('VideosService (integration)', () => {
 
   it('should complete the upload: object stored, status processing, job enqueued', async () => {
     const { userId } = await createUserWithChannel();
-    const { video } = await service.initiateUpload(userId, dto);
+    const body = Buffer.from('fake video bytes');
+    const { video } = await service.initiateUpload(userId, {
+      ...dto,
+      file_size: body.length,
+    });
 
     const [part] = await service.getPartUrls(userId, video.slug, [1]);
-    const body = Buffer.from('fake video bytes');
     const putResponse = await fetchPresigned(part.url, {
       method: 'PUT',
       body,
@@ -140,12 +143,16 @@ describe('VideosService (integration)', () => {
 
   it('should reject completing twice (state machine)', async () => {
     const { userId } = await createUserWithChannel();
-    const { video } = await service.initiateUpload(userId, dto);
+    const body = Buffer.from('x');
+    const { video } = await service.initiateUpload(userId, {
+      ...dto,
+      file_size: body.length,
+    });
 
     const [part] = await service.getPartUrls(userId, video.slug, [1]);
     const putResponse = await fetchPresigned(part.url, {
       method: 'PUT',
-      body: Buffer.from('x'),
+      body,
     });
     await service.completeUpload(userId, video.slug, {
       parts: [{ part_number: 1, etag: putResponse.headers.etag! }],
@@ -156,5 +163,25 @@ describe('VideosService (integration)', () => {
         parts: [{ part_number: 1, etag: 'stale' }],
       }),
     ).rejects.toThrow('state');
+  });
+
+  it('should reject and delete the stored object when the uploaded size does not match the declared file_size', async () => {
+    const { userId } = await createUserWithChannel();
+    const { video } = await service.initiateUpload(userId, {
+      ...dto,
+      file_size: 999999,
+    });
+
+    const [part] = await service.getPartUrls(userId, video.slug, [1]);
+    const putResponse = await fetchPresigned(part.url, {
+      method: 'PUT',
+      body: Buffer.from('mismatched size body'),
+    });
+
+    await expect(
+      service.completeUpload(userId, video.slug, {
+        parts: [{ part_number: 1, etag: putResponse.headers.etag! }],
+      }),
+    ).rejects.toThrow('size');
   });
 });
