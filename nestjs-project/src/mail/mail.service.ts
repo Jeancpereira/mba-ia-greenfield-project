@@ -20,7 +20,7 @@ export class MailService {
     name: string,
     token: string,
   ): Promise<void> {
-    const confirmationUrl = `${this.appUrl}/auth/confirm-email?token=${token}`;
+    const confirmationUrl = `${this.appUrl}/confirm-email?token=${token}`;
     await this.mailerService.sendMail({
       to: email,
       subject: MAIL_SUBJECTS.CONFIRMATION,
@@ -34,7 +34,7 @@ export class MailService {
     name: string,
     token: string,
   ): Promise<void> {
-    const resetUrl = `${this.appUrl}/auth/reset-password?token=${token}`;
+    const resetUrl = `${this.appUrl}/reset-password?token=${token}`;
     await this.mailerService.sendMail({
       to: email,
       subject: MAIL_SUBJECTS.PASSWORD_RESET,

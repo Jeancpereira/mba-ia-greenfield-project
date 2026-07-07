@@ -68,8 +68,8 @@ function captureConfirmationToken(authService: AuthService): Promise<string> {
     const mailServiceInstance = (authService as any).mailService;
     jest
       .spyOn(mailServiceInstance, 'sendConfirmationEmail')
-      .mockImplementationOnce((_e: string, _n: string, t: string) => {
-        resolve(t);
+      .mockImplementationOnce((...args: unknown[]) => {
+        resolve(args[2] as string);
         return Promise.resolve();
       });
   });
@@ -566,8 +566,8 @@ function capturePasswordResetToken(authService: AuthService): Promise<string> {
     const mailServiceInstance = (authService as any).mailService;
     jest
       .spyOn(mailServiceInstance, 'sendPasswordResetEmail')
-      .mockImplementationOnce((_e: string, _n: string, t: string) => {
-        resolve(t);
+      .mockImplementationOnce((...args: unknown[]) => {
+        resolve(args[2] as string);
         return Promise.resolve();
       });
   });

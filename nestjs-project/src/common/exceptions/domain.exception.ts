@@ -90,3 +90,13 @@ export class SlugGenerationFailedException extends DomainException {
     );
   }
 }
+
+export class VideoFileSizeMismatchException extends DomainException {
+  constructor() {
+    super(
+      'VIDEO_FILE_SIZE_MISMATCH',
+      422,
+      'Uploaded object size exceeds the maximum allowed size or does not match the declared file size',
+    );
+  }
+}

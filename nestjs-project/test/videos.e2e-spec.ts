@@ -144,10 +144,11 @@ describe('Videos (e2e)', () => {
     it('runs initiate → part-urls → PUT part → complete and enqueues processing', async () => {
       const { token } = await createAuthenticatedUser();
 
+      const body = Buffer.from('fake video bytes');
       const initiate = await request(app.getHttpServer())
         .post('/videos')
         .set('Authorization', `Bearer ${token}`)
-        .send(validPayload)
+        .send({ ...validPayload, file_size: body.length })
         .expect(201);
       const slug = initiate.body.slug as string;
 
@@ -160,7 +161,7 @@ describe('Videos (e2e)', () => {
 
       const putResponse = await fetchPresigned(partUrls.body.urls[0].url, {
         method: 'PUT',
-        body: Buffer.from('fake video bytes'),
+        body,
       });
       expect(putResponse.status).toBe(200);
 

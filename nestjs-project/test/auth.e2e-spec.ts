@@ -64,8 +64,8 @@ describe('Auth (e2e)', () => {
     let capturedToken = '';
     jest
       .spyOn(mailServiceInstance, 'sendConfirmationEmail')
-      .mockImplementationOnce((_e: string, _n: string, t: string) => {
-        capturedToken = t;
+      .mockImplementationOnce((...args: unknown[]) => {
+        capturedToken = args[2] as string;
         return Promise.resolve();
       });
     await request(app.getHttpServer())
@@ -517,8 +517,8 @@ describe('Auth (e2e)', () => {
     let captured = '';
     jest
       .spyOn(mailServiceInstance, 'sendPasswordResetEmail')
-      .mockImplementationOnce((_e: string, _n: string, t: string) => {
-        captured = t;
+      .mockImplementationOnce((...args: unknown[]) => {
+        captured = args[2] as string;
         return Promise.resolve();
       });
     await request(app.getHttpServer())

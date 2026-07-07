@@ -178,7 +178,7 @@ Worker processing (`src/videos/processing/`): downloads the original to a temp d
 
 ## Code Conventions
 
-- **TypeScript:** `nodenext` module resolution, `ES2023` target, `strictNullChecks` on, `noImplicitAny` off
+- **TypeScript:** `nodenext` module resolution, `ES2023` target, `strict: true` (todos os strict flags ativos)
 - **Decorators:** `emitDecoratorMetadata` + `experimentalDecorators` enabled — required for NestJS DI
 - **Prettier:** single quotes, trailing commas everywhere
 - **ESLint:** `no-explicit-any` allowed; `no-floating-promises` and `no-unsafe-argument` are warnings
