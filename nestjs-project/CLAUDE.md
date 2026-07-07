@@ -13,6 +13,8 @@ docker compose ps   # all services must show status "running"
 Then verify each infrastructure service is actually ready to accept connections — not just running:
 
 - **PostgreSQL:** `docker compose exec db pg_isready -U streamtube` — expect `accepting connections`
+- **Redis:** `docker compose exec redis redis-cli ping` — expect `PONG`
+- **MinIO:** the `minio` service healthcheck (`mc ready local`) must be healthy; the one-shot `minio-init` service creates the `streamtube` bucket on startup
 
 Only start the NestJS dev server (`npm run start:dev`) when the user **explicitly** asks to run the application — never as part of "start the environment".
 
@@ -34,6 +36,10 @@ docker compose exec nestjs-api npm run start:dev
 Services:
 - `nestjs-api` — NestJS API, port `3000`
 - `db` — PostgreSQL 17, port `5432`, database `streamtube`, user/password `streamtube`
+- `mailpit` — SMTP capture (`1025`) + web UI (`8025`)
+- `minio` — S3-compatible object storage, API port `9000`, console `9001` (user `streamtube`, password `streamtube1234`); bucket `streamtube` created by the one-shot `minio-init` service
+- `redis` — Redis 7 (BullMQ backing store), port `6379`
+- `video-worker` — video processing worker (same image as the API, command `npm run start:worker`); consumes the `video-processing` BullMQ queue
 
 All verification and teardown commands run on the **host machine**:
 
@@ -60,6 +66,7 @@ docker compose down
 
 ```bash
 npm run start:dev                        # Dev server with hot-reload
+npm run start:worker                     # Video worker (queue consumer) with hot-reload
 npm run build                            # Compile to dist/
 npm run start:prod                       # Run compiled build
 
@@ -148,6 +155,26 @@ NestJS with standard module structure. Source lives in `src/`, compiled output i
 
 - Each domain feature gets its own module (e.g., `UsersModule`, `VideosModule`) registered in `AppModule`
 - Controllers handle HTTP routing; Services hold business logic; both are scoped to their module
+- Two entrypoints share the codebase: `src/main.ts` (HTTP API) and `src/worker/main.ts` (standalone application context consuming the BullMQ queue — the `video-worker` container). The `VideoProcessingProcessor` is registered only in `WorkerModule`, so the API process never consumes jobs.
+
+## Videos Module (Fase 03)
+
+Upload and processing pipeline — files up to 10GB go **directly to object storage** via S3 multipart presigned URLs; the API is control-plane only.
+
+Endpoints (`src/videos/videos.controller.ts`; error codes in `src/common/exceptions/domain.exception.ts`):
+
+- `POST /videos` (auth) — pre-registers the video as `draft` on the caller's channel, opens the multipart session, returns `slug` + `upload {upload_id, part_size (100MB), part_count}`
+- `POST /videos/{slug}/upload/part-urls` (owner) — presigned PUT URLs per part; client keeps each response `ETag`
+- `POST /videos/{slug}/upload/complete` (owner) — completes the multipart upload, flips status to `processing`, enqueues `process-video`
+- `GET /videos/{slug}` (public) — details; anonymous/non-owner only see `ready` videos, the owner sees any status (+ `error_reason`)
+- `GET /videos/{slug}/stream` (public, `ready` only) — `302` redirect to a presigned GET; MinIO serves HTTP Range (`206`)
+- `GET /videos/{slug}/download` (public, `ready` only) — `302` redirect with `Content-Disposition: attachment`
+
+Status lifecycle: `draft → processing → ready | failed` (terminal `failed` persists `error_reason` after 3 attempts with exponential backoff).
+
+Storage (`src/storage/`): two S3 clients — internal endpoint (`S3_ENDPOINT`, `minio:9000`) for object operations, public endpoint (`S3_PUBLIC_ENDPOINT`, `localhost:9000`) exclusively for signing URLs handed to clients outside the Compose network. Tests fetching presigned URLs from inside the container use `src/test/presigned-http.ts` (connects to `minio:9000` preserving the signed `Host` header).
+
+Worker processing (`src/videos/processing/`): downloads the original to a temp dir, `ffprobe` (duration + codec/dimensions/bitrate into `metadata` jsonb), `ffmpeg` single-frame JPEG thumbnail, uploads `thumbnails/{id}.jpg`, marks `ready`. ffmpeg/ffprobe binaries ship in the dev image (`Dockerfile.dev`).
 
 ## Code Conventions
 

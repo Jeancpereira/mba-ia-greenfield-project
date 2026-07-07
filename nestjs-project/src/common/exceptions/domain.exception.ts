@@ -48,3 +48,45 @@ export class TokenReuseDetectedException extends DomainException {
     );
   }
 }
+
+export class VideoNotFoundException extends DomainException {
+  constructor() {
+    super('VIDEO_NOT_FOUND', 404, 'Video not found');
+  }
+}
+
+export class NotVideoOwnerException extends DomainException {
+  constructor() {
+    super('NOT_VIDEO_OWNER', 403, 'You do not own this video');
+  }
+}
+
+export class InvalidUploadStateException extends DomainException {
+  constructor() {
+    super(
+      'INVALID_UPLOAD_STATE',
+      409,
+      'Video is not in a state that accepts upload operations',
+    );
+  }
+}
+
+export class UploadIncompleteException extends DomainException {
+  constructor() {
+    super(
+      'UPLOAD_INCOMPLETE',
+      400,
+      'Storage rejected the upload completion — missing parts or ETag mismatch',
+    );
+  }
+}
+
+export class SlugGenerationFailedException extends DomainException {
+  constructor() {
+    super(
+      'SLUG_GENERATION_FAILED',
+      500,
+      'Could not generate a unique video slug',
+    );
+  }
+}
