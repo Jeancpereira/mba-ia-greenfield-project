@@ -20,7 +20,7 @@ export class MailService {
     name: string,
     token: string,
   ): Promise<void> {
-    const confirmationUrl = `${this.appUrl}/auth/confirm-email?token=${token}`;
+    const confirmationUrl = `${this.appUrl}/confirm-email?token=${token}`;
     await this.mailerService.sendMail({
       to: email,
       subject: MAIL_SUBJECTS.CONFIRMATION,
@@ -34,12 +34,26 @@ export class MailService {
     name: string,
     token: string,
   ): Promise<void> {
-    const resetUrl = `${this.appUrl}/auth/reset-password?token=${token}`;
+    const resetUrl = `${this.appUrl}/reset-password?token=${token}`;
     await this.mailerService.sendMail({
       to: email,
       subject: MAIL_SUBJECTS.PASSWORD_RESET,
       template: MAIL_TEMPLATES.PASSWORD_RESET,
       context: { name, resetUrl },
+    });
+  }
+
+  async sendAccountAlreadyExistsEmail(
+    email: string,
+    name: string,
+  ): Promise<void> {
+    const loginUrl = `${this.appUrl}/login`;
+    const forgotPasswordUrl = `${this.appUrl}/forgot-password`;
+    await this.mailerService.sendMail({
+      to: email,
+      subject: MAIL_SUBJECTS.ACCOUNT_EXISTS,
+      template: MAIL_TEMPLATES.ACCOUNT_EXISTS,
+      context: { name, loginUrl, forgotPasswordUrl },
     });
   }
 }

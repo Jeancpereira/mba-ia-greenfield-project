@@ -9,12 +9,6 @@ export abstract class DomainException extends Error {
   }
 }
 
-export class EmailAlreadyExistsException extends DomainException {
-  constructor() {
-    super('EMAIL_ALREADY_EXISTS', 409, 'Email is already registered');
-  }
-}
-
 export class InvalidCredentialsException extends DomainException {
   constructor() {
     super('INVALID_CREDENTIALS', 401, 'Invalid email or password');
@@ -87,6 +81,16 @@ export class SlugGenerationFailedException extends DomainException {
       'SLUG_GENERATION_FAILED',
       500,
       'Could not generate a unique video slug',
+    );
+  }
+}
+
+export class VideoFileSizeMismatchException extends DomainException {
+  constructor() {
+    super(
+      'VIDEO_FILE_SIZE_MISMATCH',
+      422,
+      'Uploaded object size exceeds the maximum allowed size or does not match the declared file size',
     );
   }
 }

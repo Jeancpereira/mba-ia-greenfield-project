@@ -10,7 +10,6 @@ import authConfig from '../config/auth.config';
 import mailConfig from '../config/mail.config';
 import * as argon2 from 'argon2';
 import {
-  EmailAlreadyExistsException,
   InvalidCredentialsException,
   InvalidTokenException,
   TokenExpiredException,
@@ -68,8 +67,8 @@ function captureConfirmationToken(authService: AuthService): Promise<string> {
     const mailServiceInstance = (authService as any).mailService;
     jest
       .spyOn(mailServiceInstance, 'sendConfirmationEmail')
-      .mockImplementationOnce((_e: string, _n: string, t: string) => {
-        resolve(t);
+      .mockImplementationOnce((...args: unknown[]) => {
+        resolve(args[2] as string);
         return Promise.resolve();
       });
   });
@@ -148,18 +147,76 @@ describe('AuthService — register (integration)', () => {
     expect(token!.token_hash).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it('throws EmailAlreadyExistsException on duplicate email', async () => {
-    await authService.register({
+  it('does not create a second user on duplicate email and resends confirmation (unconfirmed account)', async () => {
+    const first = await authService.register({
       email: 'dup@example.com',
       password: 'password123',
     });
 
-    await expect(
-      authService.register({
-        email: 'dup@example.com',
-        password: 'password456',
-      }),
-    ).rejects.toThrow(EmailAlreadyExistsException);
+    const oldToken = await verificationTokenRepository.findOneBy({
+      user_id: first.id,
+    });
+
+    const mailServiceInstance = (authService as any).mailService;
+    const sendConfirmationSpy = jest.spyOn(
+      mailServiceInstance,
+      'sendConfirmationEmail',
+    );
+
+    const second = await authService.register({
+      email: 'dup@example.com',
+      password: 'password456',
+    });
+
+    expect(second).toEqual({ id: first.id, email: first.email });
+
+    const users = await userRepository.findBy({ email: 'dup@example.com' });
+    expect(users.length).toBe(1);
+
+    expect(sendConfirmationSpy).toHaveBeenCalled();
+
+    const refreshedOldToken = await verificationTokenRepository.findOneBy({
+      id: oldToken!.id,
+    });
+    expect(refreshedOldToken!.used_at).toBeInstanceOf(Date);
+  });
+
+  it('does not create a second user on duplicate email and sends an "account exists" notice (confirmed account)', async () => {
+    const capturePromise = captureConfirmationToken(authService);
+    const first = await authService.register({
+      email: 'dupconfirmed@example.com',
+      password: 'password123',
+    });
+    const confirmToken = await capturePromise;
+    await authService.confirm(confirmToken);
+
+    const mailServiceInstance = (authService as any).mailService;
+    const sendAccountExistsSpy = jest
+      .spyOn(mailServiceInstance, 'sendAccountAlreadyExistsEmail')
+      .mockResolvedValue(undefined);
+    const sendConfirmationSpy = jest.spyOn(
+      mailServiceInstance,
+      'sendConfirmationEmail',
+    );
+    sendConfirmationSpy.mockClear();
+
+    const second = await authService.register({
+      email: 'dupconfirmed@example.com',
+      password: 'password456',
+    });
+
+    expect(second).toEqual({ id: first.id, email: first.email });
+
+    const users = await userRepository.findBy({
+      email: 'dupconfirmed@example.com',
+    });
+    expect(users.length).toBe(1);
+
+    expect(sendAccountExistsSpy).toHaveBeenCalledWith(
+      'dupconfirmed@example.com',
+      expect.any(String),
+    );
+    expect(sendConfirmationSpy).not.toHaveBeenCalled();
   });
 
   it('confirmation token hash matches sha256 of raw token delivered by mail service', async () => {
@@ -566,8 +623,8 @@ function capturePasswordResetToken(authService: AuthService): Promise<string> {
     const mailServiceInstance = (authService as any).mailService;
     jest
       .spyOn(mailServiceInstance, 'sendPasswordResetEmail')
-      .mockImplementationOnce((_e: string, _n: string, t: string) => {
-        resolve(t);
+      .mockImplementationOnce((...args: unknown[]) => {
+        resolve(args[2] as string);
         return Promise.resolve();
       });
   });

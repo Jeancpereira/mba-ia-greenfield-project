@@ -20,17 +20,17 @@ export enum VideoStatus {
 @Entity('videos')
 export class Video {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Index()
   @Column({ type: 'uuid' })
-  channel_id: string;
+  channel_id!: string;
 
   @Column({ type: 'varchar', length: 255 })
-  title: string;
+  title!: string;
 
   @Column({ type: 'varchar', length: 21, unique: true })
-  slug: string;
+  slug!: string;
 
   @Index()
   @Column({
@@ -39,39 +39,39 @@ export class Video {
     enumName: 'videos_status_enum',
     default: VideoStatus.DRAFT,
   })
-  status: VideoStatus;
+  status!: VideoStatus;
 
   @Column({ type: 'varchar', length: 512 })
-  original_key: string;
+  original_key!: string;
 
   @Column({ type: 'varchar', length: 512, nullable: true })
-  thumbnail_key: string | null;
+  thumbnail_key!: string | null;
 
   @Column({ type: 'varchar', length: 512, nullable: true })
-  upload_id: string | null;
+  upload_id!: string | null;
 
   @Column({ type: 'varchar', length: 255 })
-  mime_type: string;
+  mime_type!: string;
 
   @Column({ type: 'bigint' })
-  file_size: string;
+  file_size!: string;
 
   @Column({ type: 'int', nullable: true })
-  duration_seconds: number | null;
+  duration_seconds!: number | null;
 
   @Column({ type: 'jsonb', nullable: true })
-  metadata: Record<string, unknown> | null;
+  metadata!: Record<string, unknown> | null;
 
   @Column({ type: 'varchar', length: 1024, nullable: true })
-  error_reason: string | null;
+  error_reason!: string | null;
 
   @CreateDateColumn()
-  created_at: Date;
+  created_at!: Date;
 
   @UpdateDateColumn()
-  updated_at: Date;
+  updated_at!: Date;
 
   @ManyToOne(() => Channel)
   @JoinColumn({ name: 'channel_id' })
-  channel: Channel;
+  channel!: Channel;
 }

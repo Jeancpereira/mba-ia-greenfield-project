@@ -4,6 +4,7 @@ import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
   CreateMultipartUploadCommand,
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
@@ -137,5 +138,11 @@ export class StorageService {
       new HeadObjectCommand({ Bucket: this.config.bucket, Key: key }),
     );
     return { contentLength: result.ContentLength ?? 0 };
+  }
+
+  async deleteObject(key: string): Promise<void> {
+    await this.internalClient.send(
+      new DeleteObjectCommand({ Bucket: this.config.bucket, Key: key }),
+    );
   }
 }

@@ -47,7 +47,7 @@ describe("<SignupForm /> wiring", () => {
     })
   })
 
-  it("maps a 409 to an inline email hint with a 'fazer login' CTA", async () => {
+  it("maps any error status (e.g. a stray 409) to the generic form-level message, never an email-specific hint", async () => {
     const user = userEvent.setup()
     server.use(
       http.post("/api/auth/signup", () =>
@@ -61,11 +61,11 @@ describe("<SignupForm /> wiring", () => {
     await fillValid(user)
     await user.click(screen.getByRole("button", { name: "Create account" }))
 
+    const alert = await screen.findByRole("alert")
+    expect(alert).toHaveTextContent(/Email already registered/i)
     expect(
-      await screen.findByText(/Email already registered/i)
-    ).toBeInTheDocument()
-    const cta = screen.getByRole("link", { name: /fazer login/i })
-    expect(cta).toHaveAttribute("href", "/login")
+      screen.queryByRole("link", { name: /fazer login/i })
+    ).not.toBeInTheDocument()
   })
 
   it("maps a 400 to a form-level message, not the email field", async () => {

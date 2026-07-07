@@ -4,6 +4,7 @@ export class CreateUsersAndChannels1775687773260 implements MigrationInterface {
   name = 'CreateUsersAndChannels1775687773260';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
     await queryRunner.query(
       `CREATE TABLE "channels" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying(50) NOT NULL, "nickname" character varying(50) NOT NULL, "description" text, "user_id" uuid NOT NULL, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_a221f571edb63f68938f1bdd969" UNIQUE ("nickname"), CONSTRAINT "UQ_23dc7937150c9567d37869313ce" UNIQUE ("user_id"), CONSTRAINT "REL_23dc7937150c9567d37869313c" UNIQUE ("user_id"), CONSTRAINT "PK_bc603823f3f741359c2339389f9" PRIMARY KEY ("id"))`,
     );

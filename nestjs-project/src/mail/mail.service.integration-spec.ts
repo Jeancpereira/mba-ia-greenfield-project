@@ -86,6 +86,32 @@ describe('MailService (integration)', () => {
     expect(detail.HTML).toContain('1 hour');
   });
 
+  it('sendAccountAlreadyExistsEmail delivers to Mailpit with correct subject and recipient', async () => {
+    await mailService.sendAccountAlreadyExistsEmail(
+      'user@example.com',
+      'Alice',
+    );
+
+    const messages = await getMailpitMessages();
+    expect(messages).toHaveLength(1);
+    expect(messages[0].To[0].Address).toBe('user@example.com');
+    expect(messages[0].Subject).toBe(MAIL_SUBJECTS.ACCOUNT_EXISTS);
+  });
+
+  it('sendAccountAlreadyExistsEmail renders login and password reset links in the body', async () => {
+    await mailService.sendAccountAlreadyExistsEmail(
+      'user@example.com',
+      'Alice',
+    );
+
+    const messages = await getMailpitMessages();
+    const detail = await getMailpitMessage(messages[0].ID);
+
+    expect(detail.HTML).toContain('Alice');
+    expect(detail.HTML).toContain('/login');
+    expect(detail.HTML).toContain('/forgot-password');
+  });
+
   it('both emails use the configured MAIL_FROM address as sender', async () => {
     await mailService.sendConfirmationEmail('user@example.com', 'Alice', 'tok');
 

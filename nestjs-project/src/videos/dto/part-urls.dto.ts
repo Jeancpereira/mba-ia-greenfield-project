@@ -13,5 +13,5 @@ export class PartUrlsDto {
   @ArrayMaxSize(MAX_PART_URLS_PER_REQUEST)
   @IsInt({ each: true })
   @Min(1, { each: true })
-  part_numbers: number[];
+  part_numbers!: number[];
 }

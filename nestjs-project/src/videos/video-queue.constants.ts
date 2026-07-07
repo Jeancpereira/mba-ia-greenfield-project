@@ -4,6 +4,11 @@ export const PROCESS_VIDEO_JOB = 'process-video';
 export const PROCESS_VIDEO_JOB_OPTIONS = {
   attempts: 3,
   backoff: { type: 'exponential', delay: 5000 },
+  // Keep the queue from growing unbounded: retain a small tail of completed
+  // jobs (debugging/inspection) and a larger tail of failed jobs (auditing
+  // terminal failures) instead of keeping every job forever.
+  removeOnComplete: 100,
+  removeOnFail: 1000,
 } as const;
 
 export interface ProcessVideoJobPayload {

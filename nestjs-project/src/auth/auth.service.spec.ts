@@ -6,7 +6,6 @@ import { Test } from '@nestjs/testing';
 import { Repository } from 'typeorm';
 import authConfig from '../config/auth.config';
 import {
-  EmailAlreadyExistsException,
   EmailNotConfirmedException,
   InvalidCredentialsException,
   InvalidTokenException,
@@ -50,7 +49,7 @@ describe('AuthService — register', () => {
         {
           provide: UsersService,
           useValue: {
-            findByEmail: jest.fn(),
+            findByEmailWithChannel: jest.fn(),
             createUserWithChannel: jest.fn(),
           },
         },
@@ -58,6 +57,9 @@ describe('AuthService — register', () => {
           provide: MailService,
           useValue: {
             sendConfirmationEmail: jest.fn().mockResolvedValue(undefined),
+            sendAccountAlreadyExistsEmail: jest
+              .fn()
+              .mockResolvedValue(undefined),
           },
         },
         {
@@ -65,6 +67,7 @@ describe('AuthService — register', () => {
           useValue: {
             create: jest.fn(),
             save: jest.fn().mockResolvedValue({}),
+            createQueryBuilder: jest.fn(),
           },
         },
         {
@@ -89,24 +92,67 @@ describe('AuthService — register', () => {
     verificationTokenRepository = module.get(
       getRepositoryToken(VerificationToken),
     );
+
+    const qbMock = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue(undefined),
+    };
+    verificationTokenRepository.createQueryBuilder.mockReturnValue(
+      qbMock as any,
+    );
   });
 
-  it('throws EmailAlreadyExistsException when email is already registered', async () => {
-    usersService.findByEmail.mockResolvedValue({
+  it('does not create a user and sends "account exists" email when the existing email is confirmed', async () => {
+    usersService.findByEmailWithChannel.mockResolvedValue({
       id: 'u1',
       email: 'test@example.com',
+      is_confirmed: true,
+      channel: { name: 'nick' },
     } as any);
 
-    await expect(
-      authService.register({
-        email: 'test@example.com',
-        password: 'password123',
-      }),
-    ).rejects.toThrow(EmailAlreadyExistsException);
+    const result = await authService.register({
+      email: 'test@example.com',
+      password: 'password123',
+    });
+
+    expect(result).toEqual({ id: 'u1', email: 'test@example.com' });
+    expect(usersService.createUserWithChannel).not.toHaveBeenCalled();
+    expect(mailService.sendAccountAlreadyExistsEmail).toHaveBeenCalledWith(
+      'test@example.com',
+      'nick',
+    );
+    expect(mailService.sendConfirmationEmail).not.toHaveBeenCalled();
+  });
+
+  it('does not create a user and resends the confirmation email when the existing email is unconfirmed', async () => {
+    usersService.findByEmailWithChannel.mockResolvedValue({
+      id: 'u1',
+      email: 'test@example.com',
+      is_confirmed: false,
+      channel: { name: 'nick' },
+    } as any);
+    verificationTokenRepository.create.mockReturnValue({} as any);
+
+    const result = await authService.register({
+      email: 'test@example.com',
+      password: 'password123',
+    });
+
+    expect(result).toEqual({ id: 'u1', email: 'test@example.com' });
+    expect(usersService.createUserWithChannel).not.toHaveBeenCalled();
+    expect(mailService.sendAccountAlreadyExistsEmail).not.toHaveBeenCalled();
+    expect(mailService.sendConfirmationEmail).toHaveBeenCalledWith(
+      'test@example.com',
+      'nick',
+      expect.any(String),
+    );
   });
 
   it('hashes the password before creating the user', async () => {
-    usersService.findByEmail.mockResolvedValue(null);
+    usersService.findByEmailWithChannel.mockResolvedValue(null);
     usersService.createUserWithChannel.mockResolvedValue({
       id: 'u1',
       email: 'new@example.com',
@@ -125,7 +171,7 @@ describe('AuthService — register', () => {
   });
 
   it('calls createUserWithChannel with the correct email', async () => {
-    usersService.findByEmail.mockResolvedValue(null);
+    usersService.findByEmailWithChannel.mockResolvedValue(null);
     usersService.createUserWithChannel.mockResolvedValue({
       id: 'u1',
       email: 'new@example.com',
@@ -145,7 +191,7 @@ describe('AuthService — register', () => {
   });
 
   it('stores a verification token with EMAIL_CONFIRMATION type', async () => {
-    usersService.findByEmail.mockResolvedValue(null);
+    usersService.findByEmailWithChannel.mockResolvedValue(null);
     usersService.createUserWithChannel.mockResolvedValue({
       id: 'u1',
       email: 'new@example.com',
@@ -171,7 +217,7 @@ describe('AuthService — register', () => {
   });
 
   it('sends a confirmation email with the raw token', async () => {
-    usersService.findByEmail.mockResolvedValue(null);
+    usersService.findByEmailWithChannel.mockResolvedValue(null);
     usersService.createUserWithChannel.mockResolvedValue({
       id: 'u1',
       email: 'new@example.com',
@@ -192,7 +238,7 @@ describe('AuthService — register', () => {
   });
 
   it('returns the user id and email', async () => {
-    usersService.findByEmail.mockResolvedValue(null);
+    usersService.findByEmailWithChannel.mockResolvedValue(null);
     usersService.createUserWithChannel.mockResolvedValue({
       id: 'u1',
       email: 'new@example.com',
